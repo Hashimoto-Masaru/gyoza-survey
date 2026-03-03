@@ -139,10 +139,10 @@ textarea:focus { border-color:var(--gold); }
     <h2>ログイン</h2>
     <label class="field-label">あなたは？</label>
     <div class="user-btns">
-      <button class="user-btn" onclick="selectUser('hashimoto',this)">橋本</button>
-      <button class="user-btn" onclick="selectUser('morita',this)">森田</button>
-      <button class="user-btn" onclick="selectUser('kawaguchi',this)">川口</button>
-      <button class="user-btn" onclick="selectUser('funaba',this)">舟場</button>
+      <button class="user-btn" onclick="selectUser('hashimoto',this)">hashimoto</button>
+      <button class="user-btn" onclick="selectUser('kawaguchi',this)">kawaguchi</button>
+      <button class="user-btn" onclick="selectUser('funaba',this)">funaba</button>
+      <button class="user-btn" onclick="selectUser('morita',this)">morita</button>
     </div>
     <div id="pw-section" style="display:none;margin-top:20px;">
       <label class="field-label" for="pw">パスワード</label>
@@ -208,24 +208,27 @@ const SUPABASE_URL = "https://bskshrjdbadadulbwrxk.supabase.co";
 const SUPABASE_KEY = "sb_publishable_wD7s_iEPlcamo5ZfGV3Xug_uRitIbpI";
 
 const sb = {
-  headers: {
+  h: {
     "apikey": SUPABASE_KEY,
     "Authorization": "Bearer " + SUPABASE_KEY,
     "Content-Type": "application/json"
   },
   async select(query) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/gyoza_responses?${query}`, { headers: this.headers });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/gyoza_responses?${query}`, { headers: this.h });
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
+  // ON CONFLICT upsert - updates existing row if user_name+shop_id+gyoza_type already exists
   async upsert(rows) {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/gyoza_responses`, {
       method: "POST",
-      headers: { ...this.headers, "Prefer": "resolution=merge-duplicates,return=representation" },
+      headers: {
+        ...this.h,
+        "Prefer": "resolution=merge-duplicates,return=minimal"
+      },
       body: JSON.stringify(rows)
     });
     if (!r.ok) throw new Error(await r.text());
-    return r.json();
   }
 };
 
@@ -298,8 +301,12 @@ function answersToRows(isDraft) {
       const a = answers[shop.id][type];
       if (!a.scores.some(sc => sc > 0) && !a.comment) return;
       const row = {
-        user_name: currentUser, shop_id: shop.id, shop_name: shop.name,
-        gyoza_type: type, comment: a.comment, is_draft: isDraft,
+        user_name: currentUser,
+        shop_id: shop.id,
+        shop_name: shop.name,
+        gyoza_type: type,
+        comment: a.comment,
+        is_draft: isDraft,
         updated_at: new Date().toISOString()
       };
       CRIT_COLS.forEach((col, ci) => { row[col] = a.scores[ci]; });
@@ -346,7 +353,7 @@ async function doAuth() {
       if (n > 0) {
         const isDraft = rows.some(r => r.is_draft);
         $("draft-notice").style.display = "block";
-        $("draft-notice").textContent = `💾 前回の${isDraft?"入力途中のデータ":"回答"}があります（${n}項目入力済み）。続きから再開できます。`;
+        $("draft-notice").textContent = `💾 前回の${isDraft ? "入力途中のデータ" : "回答"}があります（${n}項目入力済み）。続きから再開できます。`;
       }
     }
     loading(false);
@@ -369,7 +376,7 @@ function goAdmin() {
   else if (pw !== null) alert("パスワードが違います");
 }
 
-// ===== AUTO SAVE =====
+// ===== SAVE =====
 async function saveNow(isDraft) {
   const rows = answersToRows(isDraft);
   if (!rows.length) return;
@@ -383,7 +390,7 @@ function scheduleSave() {
       await saveNow(true);
       flashSaved();
     } catch(e) { console.warn("自動保存失敗:", e); }
-  }, 1500);
+  }, 2000); // 2秒後に保存（連続入力中は保存しない）
 }
 
 // ===== BUILD UI =====
@@ -521,7 +528,7 @@ async function submitAll() {
   loading(true, "送信中...");
   try {
     clearTimeout(saveTimer);
-    await saveNow(false);
+    await saveNow(false); // is_draft = false で上書き
     loading(false);
     hideEl("main-screen");
     showFlex("success-screen");
@@ -535,7 +542,7 @@ async function submitAll() {
 async function loadAdminPanel() {
   loading(true, "データを読み込み中...");
   try {
-    adminData = await sb.select("select=*&order=updated_at.desc");
+    adminData = await sb.select("select=*&order=user_name.asc,shop_id.asc,gyoza_type.asc");
     loading(false);
     $("resp-count").textContent = `${adminData.length} 件`;
     const filtersEl = $("admin-filters");
@@ -584,7 +591,7 @@ function exportCSV() {
   if (!adminData.length) { alert("データがありません"); return; }
   const rows = [["状態","更新日時","回答者","店舗","餃子の種類",...CRITERIA,"コメント"]];
   adminData.forEach(r => rows.push([
-    r.is_draft?"入力中":"送信済",
+    r.is_draft ? "入力中" : "送信済",
     new Date(r.updated_at).toLocaleString("ja-JP"),
     r.user_name, r.shop_name, r.gyoza_type,
     ...CRIT_COLS.map(c => r[c] || ""),
