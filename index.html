@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>餃子アンケート 2024</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Kaisei+Opti:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #1a0a00; --surface: #2a1200; --surface2: #3a1e08; --border: #5a3010;
+  --gold: #e8a030; --gold-light: #f5c060; --red: #d04020; --red-light: #f06040;
+  --cream: #f5e8d0; --muted: #a07848; --star-on: #e8a030; --star-off: #4a2808;
+  --text: #f0dfc0; --green: #4aaa6a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Zen Maru Gothic', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+body::before { content:''; position:fixed; inset:0; background-image: radial-gradient(ellipse at 20% 20%, rgba(208,64,32,.12) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(232,160,48,.08) 0%, transparent 50%); pointer-events:none; z-index:0; }
+.app { position:relative; z-index:1; }
+
+#auth-screen { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 20px; }
+.logo-wrap { text-align:center; margin-bottom:40px; }
+.logo-emoji { font-size:64px; display:block; margin-bottom:12px; filter:drop-shadow(0 0 20px rgba(232,160,48,.5)); animation:float 3s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.logo-title { font-family:'Kaisei Opti',serif; font-size:clamp(26px,6vw,40px); color:var(--gold); letter-spacing:.1em; text-shadow:0 0 30px rgba(232,160,48,.4); }
+.logo-sub { font-size:13px; color:var(--muted); margin-top:8px; letter-spacing:.12em; }
+
+.auth-card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:36px 32px; width:100%; max-width:420px; box-shadow:0 8px 48px rgba(0,0,0,.6), inset 0 1px 0 rgba(232,160,48,.1); }
+.auth-card h2 { font-size:15px; color:var(--muted); text-align:center; margin-bottom:24px; letter-spacing:.1em; }
+.field-label { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:8px; }
+
+.user-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:4px; }
+.user-btn { background:var(--surface2); border:1.5px solid var(--border); border-radius:12px; padding:14px 10px; font-size:15px; font-family:inherit; color:var(--text); cursor:pointer; transition:all .2s; text-align:center; }
+.user-btn:hover { border-color:var(--gold); color:var(--gold); }
+.user-btn.selected { background:var(--red); border-color:var(--red); color:#fff; box-shadow:0 2px 12px rgba(208,64,32,.4); }
+
+input[type="password"] { width:100%; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:13px 16px; font-size:15px; font-family:inherit; color:var(--text); outline:none; transition:border-color .2s; margin-bottom:12px; }
+input:focus { border-color:var(--gold); }
+
+.draft-notice { background:rgba(74,170,106,.15); border:1px solid rgba(74,170,106,.4); border-radius:10px; padding:10px 14px; font-size:13px; color:var(--green); margin-bottom:12px; line-height:1.5; }
+
+.btn { display:block; width:100%; background:linear-gradient(135deg, var(--red) 0%, var(--gold) 100%); color:#fff; border:none; border-radius:10px; padding:14px; font-size:15px; font-family:inherit; font-weight:700; cursor:pointer; letter-spacing:.08em; transition:opacity .2s, transform .1s; box-shadow:0 4px 20px rgba(208,64,32,.4); }
+.btn:hover { opacity:.9; } .btn:active { transform:scale(.98); } .btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.btn-ghost { background:transparent; border:1.5px solid var(--border); color:var(--muted); box-shadow:none; }
+.btn-ghost:hover { border-color:var(--gold); color:var(--gold); opacity:1; }
+.btn-green { background:linear-gradient(135deg,#2a7a4a,#4aaa6a); }
+.err { color:var(--red-light); font-size:13px; text-align:center; margin-top:8px; display:none; }
+
+.topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:0 2px 20px rgba(0,0,0,.4); }
+.topbar-title { font-family:'Kaisei Opti',serif; font-size:18px; color:var(--gold); }
+.topbar-right { display:flex; align-items:center; gap:12px; }
+.topbar-user { font-size:13px; color:var(--muted); }
+.topbar-user span { color:var(--gold-light); font-weight:700; }
+.save-indicator { font-size:11px; color:var(--green); opacity:0; transition:opacity .4s; white-space:nowrap; }
+.save-indicator.show { opacity:1; }
+
+#main-screen { display:none; }
+.main-content { max-width:820px; margin:0 auto; padding:32px 16px 80px; }
+.progress-bar-wrap { background:var(--surface2); border-radius:99px; height:6px; margin-bottom:8px; overflow:hidden; }
+.progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--red),var(--gold)); border-radius:99px; transition:width .4s ease; }
+.progress-label { font-size:12px; color:var(--muted); text-align:right; margin-bottom:28px; }
+
+.shops-nav { display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; margin-bottom:28px; scrollbar-width:none; }
+.shops-nav::-webkit-scrollbar { display:none; }
+.shop-tab { flex-shrink:0; background:var(--surface2); border:1.5px solid var(--border); border-radius:99px; padding:8px 16px; font-size:13px; font-family:inherit; color:var(--muted); cursor:pointer; transition:all .2s; white-space:nowrap; }
+.shop-tab.active { background:var(--red); border-color:var(--red); color:#fff; box-shadow:0 2px 12px rgba(208,64,32,.4); }
+.shop-tab.done { border-color:var(--gold); color:var(--gold); }
+.shop-tab.done::after { content:" ✓"; }
+
+.shop-panel { display:none; } .shop-panel.active { display:block; }
+.shop-heading { font-family:'Kaisei Opti',serif; font-size:clamp(20px,4vw,28px); color:var(--gold); margin-bottom:6px; display:flex; align-items:center; gap:12px; }
+.shop-heading::before { content:'🥟'; font-size:24px; }
+.shop-subtitle { color:var(--muted); font-size:13px; margin-bottom:24px; }
+.gyoza-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:20px; transition:border-color .2s; }
+.gyoza-card.filled { border-color:rgba(232,160,48,.4); }
+.gyoza-card h3 { font-size:17px; color:var(--cream); margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+.gyoza-card h3::before { content:'◆'; color:var(--red); font-size:10px; }
+.rating-row { display:grid; grid-template-columns:110px 1fr; align-items:center; gap:12px; margin-bottom:14px; }
+@media(max-width:480px){ .rating-row{ grid-template-columns:1fr; gap:4px; margin-bottom:18px; } }
+.rating-label { font-size:13px; color:var(--muted); white-space:nowrap; }
+.stars-wrap { display:flex; gap:4px; align-items:center; }
+.star { font-size:28px; color:var(--star-off); cursor:pointer; transition:color .12s,transform .1s; user-select:none; line-height:1; }
+.star.on { color:var(--star-on); } .star:hover { transform:scale(1.2); }
+.star-val { font-size:12px; color:var(--muted); margin-left:6px; min-width:20px; }
+.comment-label { font-size:13px; color:var(--muted); display:block; margin:16px 0 8px; }
+textarea { width:100%; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:12px 14px; font-size:14px; font-family:inherit; color:var(--text); resize:vertical; min-height:80px; outline:none; transition:border-color .2s; line-height:1.6; }
+textarea:focus { border-color:var(--gold); }
+.shop-nav-btns { display:flex; gap:12px; margin-top:32px; }
+.shop-nav-btns .btn { flex:1; }
+
+#success-screen { display:none; min-height:100vh; align-items:center; justify-content:center; flex-direction:column; padding:40px 20px; text-align:center; }
+#success-screen .big-emoji { font-size:72px; margin-bottom:24px; animation:float 3s ease-in-out infinite; }
+#success-screen h2 { font-family:'Kaisei Opti',serif; font-size:28px; color:var(--gold); margin-bottom:12px; }
+#success-screen p { color:var(--muted); line-height:1.8; font-size:14px; }
+
+#admin-screen { display:none; padding:24px 16px 80px; max-width:900px; margin:0 auto; }
+.admin-topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; flex-wrap:wrap; gap:12px; }
+.admin-topbar h2 { font-family:'Kaisei Opti',serif; font-size:24px; color:var(--gold); }
+.badge { background:var(--surface2); border:1px solid var(--border); color:var(--gold); border-radius:99px; padding:4px 14px; font-size:13px; }
+.admin-filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.filter-btn { background:var(--surface2); border:1px solid var(--border); border-radius:99px; padding:6px 14px; font-size:12px; font-family:inherit; color:var(--muted); cursor:pointer; }
+.filter-btn.active { border-color:var(--gold); color:var(--gold); }
+.resp-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:14px; }
+.resp-meta { font-size:12px; color:var(--muted); margin-bottom:10px; }
+.resp-person { font-size:15px; color:var(--gold-light); font-weight:700; margin-bottom:4px; }
+.resp-shop { font-size:14px; color:var(--cream); margin-bottom:2px; }
+.resp-gyoza { font-size:13px; color:var(--muted); margin-bottom:12px; }
+.resp-scores { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.score-chip { background:var(--surface2); border-radius:8px; padding:5px 10px; font-size:12px; }
+.score-chip .sc-label { color:var(--muted); margin-right:4px; }
+.score-chip .sc-val { color:var(--gold); font-weight:700; }
+.resp-comment { font-size:13px; color:var(--cream); line-height:1.6; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.empty-state { text-align:center; color:var(--muted); padding:60px 0; font-size:14px; }
+.draft-tag { display:inline-block; background:rgba(232,160,48,.15); border:1px solid rgba(232,160,48,.3); color:var(--gold); border-radius:99px; padding:2px 10px; font-size:11px; margin-left:8px; }
+.final-tag { display:inline-block; background:rgba(74,170,106,.15); border:1px solid rgba(74,170,106,.3); color:var(--green); border-radius:99px; padding:2px 10px; font-size:11px; margin-left:8px; }
+
+.loading-overlay { position:fixed; inset:0; background:rgba(26,10,0,.85); display:flex; align-items:center; justify-content:center; z-index:999; flex-direction:column; gap:16px; }
+.loading-overlay p { color:var(--gold); font-size:14px; }
+.spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.fab { position:fixed; bottom:24px; right:20px; width:48px; height:48px; background:var(--red); border-radius:50%; border:none; color:#fff; font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 20px rgba(208,64,32,.5); z-index:200; transition:transform .2s; }
+.fab:hover { transform:scale(1.1); }
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="loading-overlay" id="loading" style="display:none">
+  <div class="spinner"></div>
+  <p id="loading-msg">読み込み中...</p>
+</div>
+
+<div id="auth-screen">
+  <div class="logo-wrap">
+    <span class="logo-emoji">🥟</span>
+    <div class="logo-title">餃子アンケート</div>
+    <div class="logo-sub">GYOZA SURVEY 2024</div>
+  </div>
+  <div class="auth-card">
+    <h2>ログイン</h2>
+    <label class="field-label">あなたは？</label>
+    <div class="user-btns">
+      <button class="user-btn" onclick="selectUser('hashimoto',this)">橋本</button>
+      <button class="user-btn" onclick="selectUser('morita',this)">森田</button>
+      <button class="user-btn" onclick="selectUser('kawaguchi',this)">川口</button>
+      <button class="user-btn" onclick="selectUser('funaba',this)">舟場</button>
+    </div>
+    <div id="pw-section" style="display:none;margin-top:20px;">
+      <label class="field-label" for="pw">パスワード</label>
+      <input type="password" id="pw" placeholder="••••••••••">
+      <div id="draft-notice" class="draft-notice" style="display:none"></div>
+      <button class="btn" onclick="doAuth()">ログインして続ける 🥟</button>
+      <p class="err" id="auth-err">パスワードが違います</p>
+    </div>
+    <div style="margin-top:20px">
+      <button class="btn btn-ghost" onclick="goAdmin()">管理者ログイン</button>
+    </div>
+  </div>
+</div>
+
+<div id="main-screen">
+  <div class="topbar">
+    <div class="topbar-title">🥟 餃子アンケート</div>
+    <div class="topbar-right">
+      <span class="save-indicator" id="save-indicator">✓ 保存済み</span>
+      <div class="topbar-user">👤 <span id="disp-name"></span></div>
+    </div>
+  </div>
+  <div class="main-content">
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-fill" style="width:0%"></div></div>
+    <div class="progress-label" id="prog-label">0 / 0 項目入力済み</div>
+    <div class="shops-nav" id="shops-nav"></div>
+    <div id="shop-panels"></div>
+    <div class="shop-nav-btns">
+      <button class="btn btn-ghost" id="btn-prev" onclick="prevShop()" style="display:none">← 前の店舗</button>
+      <button class="btn" id="btn-next" onclick="nextShop()">次の店舗 →</button>
+      <button class="btn btn-green" id="btn-submit" onclick="submitAll()" style="display:none">回答を最終送信 🎉</button>
+    </div>
+  </div>
+</div>
+
+<div id="success-screen">
+  <div class="big-emoji">🎊</div>
+  <h2>送信完了！</h2>
+  <p>餃子アンケートへのご協力<br>ありがとうございました。<br><br>またのご参加をお待ちしています 🥟</p>
+  <button class="btn" style="max-width:240px;margin:32px auto 0" onclick="location.reload()">トップへ戻る</button>
+</div>
+
+<div id="admin-screen">
+  <div class="admin-topbar">
+    <h2>📋 回答一覧</h2>
+    <span class="badge" id="resp-count">0 件</span>
+  </div>
+  <div class="admin-filters" id="admin-filters">
+    <button class="filter-btn active" onclick="filterAdmin('all',this)">すべて</button>
+  </div>
+  <div id="admin-list"></div>
+  <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
+    <button class="btn btn-ghost" style="max-width:200px" onclick="location.reload()">← 戻る</button>
+    <button class="btn btn-green" style="max-width:200px" onclick="exportCSV()">CSV 書き出し</button>
+  </div>
+</div>
+
+<button class="fab" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// ===== SUPABASE =====
+const SUPABASE_URL = "https://bskshrjdbadadulbwrxk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_wD7s_iEPlcamo5ZfGV3Xug_uRitIbpI";
+
+const sb = {
+  headers: {
+    "apikey": SUPABASE_KEY,
+    "Authorization": "Bearer " + SUPABASE_KEY,
+    "Content-Type": "application/json"
+  },
+  async select(query) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/gyoza_responses?${query}`, { headers: this.headers });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async upsert(rows) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/gyoza_responses`, {
+      method: "POST",
+      headers: { ...this.headers, "Prefer": "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify(rows)
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+};
+
+// ===== CONFIG =====
+const PASSWORD = "wakam1ya.";
+const ADMIN_PW = "admin9999";
+const USERS    = ["hashimoto","kawaguchi","funaba","morita"];
+
+const SHOPS = [
+  { id:"takanabe",  name:"高鍋ぎょうざ",                       types:["焼き","揚げ","棒ぎょうざ"] },
+  { id:"aozora",    name:"青空エール（丸岡）",                  types:["ノーマル","しょうが"] },
+  { id:"kasuga",    name:"串カツ 春日",                         types:["通常餃子"] },
+  { id:"karanmen",  name:"辛麺屋",                             types:["通常餃子"] },
+  { id:"aya",       name:"綾 福ぎょうざ（ひなたマルシェ惣菜）",  types:["通常餃子"] },
+  { id:"yataibone", name:"屋台骨",                             types:["ノーマル","にら","ジビエ猪","ジビエ鹿"] },
+  { id:"beni",      name:"紅虎餃子房",                         types:["やみつき","大餃子","棒ぎょうざ"] },
+  { id:"aeon",      name:"イオンの総菜",                       types:["通常餃子"] },
+  { id:"mawatari",  name:"餃子の馬渡",                         types:["もっちり","えびしそ","とり"] },
+];
+
+const CRITERIA   = ["焼き方","にんにくレベル","ボリューム","値段","総合評価"];
+const CRIT_COLS  = ["score_yakikata","score_ninniku","score_volume","score_nedan","score_sogo"];
+const CRIT_EMOJI = ["🔥","🧄","📦","💴","⭐"];
+
+// ===== STATE =====
+let currentUser = "";
+let currentShop = 0;
+let answers = {};
+let saveTimer = null;
+let adminData = [];
+
+// ===== UTILS =====
+const $ = id => document.getElementById(id);
+function showEl(id)   { $(id).style.display = "block"; }
+function showFlex(id) { $(id).style.display = "flex"; }
+function hideEl(id)   { $(id).style.display = "none"; }
+function escH(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function loading(show, msg="処理中...") {
+  $("loading").style.display = show ? "flex" : "none";
+  $("loading-msg").textContent = msg;
+}
+function flashSaved() {
+  const el = $("save-indicator");
+  el.classList.add("show");
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("show"), 2000);
+}
+
+// ===== ANSWERS =====
+function initAnswers() {
+  answers = {};
+  SHOPS.forEach(s => {
+    answers[s.id] = {};
+    s.types.forEach(t => { answers[s.id][t] = { scores:[0,0,0,0,0], comment:"" }; });
+  });
+}
+
+function rowsToAnswers(rows) {
+  rows.forEach(r => {
+    if (!answers[r.shop_id]?.[r.gyoza_type]) return;
+    answers[r.shop_id][r.gyoza_type].scores = CRIT_COLS.map(c => r[c] || 0);
+    answers[r.shop_id][r.gyoza_type].comment = r.comment || "";
+  });
+}
+
+function answersToRows(isDraft) {
+  const rows = [];
+  SHOPS.forEach(shop => {
+    shop.types.forEach(type => {
+      const a = answers[shop.id][type];
+      if (!a.scores.some(sc => sc > 0) && !a.comment) return;
+      const row = {
+        user_name: currentUser, shop_id: shop.id, shop_name: shop.name,
+        gyoza_type: type, comment: a.comment, is_draft: isDraft,
+        updated_at: new Date().toISOString()
+      };
+      CRIT_COLS.forEach((col, ci) => { row[col] = a.scores[ci]; });
+      rows.push(row);
+    });
+  });
+  return rows;
+}
+
+function countFilled() {
+  let n = 0;
+  SHOPS.forEach(s => s.types.forEach(t => { if (answers[s.id][t].scores.some(sc=>sc>0)) n++; }));
+  return n;
+}
+
+// ===== AUTH =====
+let selectedUser = "";
+
+function selectUser(name, btn) {
+  selectedUser = name;
+  document.querySelectorAll(".user-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  $("draft-notice").style.display = "none";
+  $("pw-section").style.display = "block";
+  $("pw").focus();
+}
+
+async function doAuth() {
+  $("auth-err").style.display = "none";
+  if (!selectedUser) { alert("ユーザーを選択してください"); return; }
+  if ($("pw").value !== PASSWORD) {
+    $("auth-err").style.display = "block";
+    $("pw").value = "";
+    return;
+  }
+  currentUser = selectedUser;
+  loading(true, "データを読み込み中...");
+  try {
+    const rows = await sb.select(`user_name=eq.${encodeURIComponent(currentUser)}&select=*`);
+    initAnswers();
+    if (rows.length > 0) {
+      rowsToAnswers(rows);
+      const n = countFilled();
+      if (n > 0) {
+        const isDraft = rows.some(r => r.is_draft);
+        $("draft-notice").style.display = "block";
+        $("draft-notice").textContent = `💾 前回の${isDraft?"入力途中のデータ":"回答"}があります（${n}項目入力済み）。続きから再開できます。`;
+      }
+    }
+    loading(false);
+    hideEl("auth-screen");
+    buildMain();
+    showEl("main-screen");
+  } catch(e) {
+    loading(false);
+    alert("データの読み込みに失敗しました。\nインターネット接続を確認してください。\n\n" + e.message);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  $("pw").addEventListener("keydown", e => { if(e.key==="Enter") doAuth(); });
+});
+
+function goAdmin() {
+  const pw = prompt("管理者パスワードを入力してください");
+  if (pw === ADMIN_PW) { loadAdminPanel(); hideEl("auth-screen"); }
+  else if (pw !== null) alert("パスワードが違います");
+}
+
+// ===== AUTO SAVE =====
+async function saveNow(isDraft) {
+  const rows = answersToRows(isDraft);
+  if (!rows.length) return;
+  await sb.upsert(rows);
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await saveNow(true);
+      flashSaved();
+    } catch(e) { console.warn("自動保存失敗:", e); }
+  }, 1500);
+}
+
+// ===== BUILD UI =====
+function buildMain() {
+  $("disp-name").textContent = currentUser;
+  const nav = $("shops-nav");
+  const panels = $("shop-panels");
+  nav.innerHTML = "";
+  panels.innerHTML = "";
+
+  SHOPS.forEach((shop, si) => {
+    const tab = document.createElement("button");
+    tab.className = "shop-tab" + (si===0?" active":"");
+    tab.id = `tab-${shop.id}`;
+    tab.textContent = shop.name;
+    tab.onclick = () => gotoShop(si);
+    nav.appendChild(tab);
+
+    const panel = document.createElement("div");
+    panel.className = "shop-panel" + (si===0?" active":"");
+    panel.id = `panel-${shop.id}`;
+
+    let html = `<div class="shop-heading">${shop.name}</div>
+      <div class="shop-subtitle">食べた餃子の評価を入力してください（食べていない種類はスキップOK）</div>`;
+
+    shop.types.forEach((type, ti) => {
+      const tid = `s${si}_t${ti}`;
+      html += `<div class="gyoza-card" id="card-${tid}"><h3>${type}</h3>`;
+      CRITERIA.forEach((crit, ci) => {
+        const sid = `${tid}_c${ci}`;
+        html += `<div class="rating-row">
+          <div class="rating-label">${CRIT_EMOJI[ci]} ${crit}</div>
+          <div class="stars-wrap" id="stars-${sid}">
+            ${[1,2,3,4,5].map(v=>`<span class="star" data-shop="${shop.id}" data-type="${type}" data-ci="${ci}" data-val="${v}" data-sid="${sid}" data-tid="${tid}" onclick="setStar(this)">★</span>`).join("")}
+            <span class="star-val" id="sv-${sid}"></span>
+          </div>
+        </div>`;
+      });
+      const et = type.replace(/'/g,"\\'");
+      html += `<label class="comment-label">📝 コメント（任意）</label>
+        <textarea id="cmt-${tid}" placeholder="味の感想、気になった点など..." oninput="saveComment('${shop.id}','${et}',this.value)"></textarea>
+      </div>`;
+    });
+    panel.innerHTML = html;
+    panels.appendChild(panel);
+  });
+
+  restoreUI();
+  updateNav();
+  updateProgress();
+}
+
+function restoreUI() {
+  SHOPS.forEach((shop, si) => {
+    shop.types.forEach((type, ti) => {
+      const tid = `s${si}_t${ti}`;
+      const a = answers[shop.id][type];
+      a.scores.forEach((sc, ci) => {
+        if (sc > 0) {
+          const sid = `${tid}_c${ci}`;
+          document.querySelectorAll(`#stars-${sid} .star`).forEach((s,i) => s.classList.toggle("on", i < sc));
+          const sv = $(`sv-${sid}`); if (sv) sv.textContent = sc;
+        }
+      });
+      if (a.comment) { const ta = $(`cmt-${tid}`); if (ta) ta.value = a.comment; }
+      checkCardFilled(shop.id, type, tid);
+      checkShopDone(shop.id);
+    });
+  });
+}
+
+// ===== INTERACTIONS =====
+function setStar(el) {
+  const {shop, type, ci, val, sid, tid} = el.dataset;
+  answers[shop][type].scores[parseInt(ci)] = parseInt(val);
+  document.querySelectorAll(`#stars-${sid} .star`).forEach((s,i) => s.classList.toggle("on", i < parseInt(val)));
+  $(`sv-${sid}`).textContent = val;
+  checkCardFilled(shop, type, tid);
+  updateProgress();
+  checkShopDone(shop);
+  scheduleSave();
+}
+
+function saveComment(shopId, type, val) {
+  answers[shopId][type].comment = val;
+  scheduleSave();
+}
+
+function checkCardFilled(shopId, type, tid) {
+  const filled = answers[shopId][type].scores.some(sc => sc > 0);
+  $(`card-${tid}`)?.classList.toggle("filled", filled);
+}
+
+function checkShopDone(shopId) {
+  const shop = SHOPS.find(s => s.id === shopId);
+  const done = shop.types.some(t => answers[shopId][t].scores.some(sc => sc > 0));
+  $(`tab-${shopId}`)?.classList.toggle("done", done);
+}
+
+function updateProgress() {
+  let total = 0, filled = 0;
+  SHOPS.forEach(shop => shop.types.forEach(type => CRITERIA.forEach((_, ci) => {
+    total++;
+    if (answers[shop.id][type].scores[ci] > 0) filled++;
+  })));
+  const pct = total ? Math.round(filled/total*100) : 0;
+  $("prog-fill").style.width = pct + "%";
+  $("prog-label").textContent = `${filled} / ${total} 項目入力済み (${pct}%)`;
+}
+
+function gotoShop(idx) {
+  SHOPS.forEach((s,i) => {
+    $(`tab-${s.id}`)?.classList.toggle("active", i===idx);
+    $(`panel-${s.id}`)?.classList.toggle("active", i===idx);
+  });
+  currentShop = idx;
+  updateNav();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+function nextShop() { if(currentShop < SHOPS.length-1) gotoShop(currentShop+1); }
+function prevShop() { if(currentShop > 0) gotoShop(currentShop-1); }
+function updateNav() {
+  const isLast = currentShop === SHOPS.length-1;
+  $("btn-prev").style.display   = currentShop > 0 ? "" : "none";
+  $("btn-next").style.display   = isLast ? "none" : "";
+  $("btn-submit").style.display = isLast ? "" : "none";
+}
+
+// ===== FINAL SUBMIT =====
+async function submitAll() {
+  if (!SHOPS.some(s => s.types.some(t => answers[s.id][t].scores.some(sc=>sc>0)))) {
+    alert("少なくとも1つの評価を入力してください"); return;
+  }
+  if (!confirm("回答を最終送信しますか？")) return;
+  loading(true, "送信中...");
+  try {
+    clearTimeout(saveTimer);
+    await saveNow(false);
+    loading(false);
+    hideEl("main-screen");
+    showFlex("success-screen");
+  } catch(e) {
+    loading(false);
+    alert("送信に失敗しました。\n" + e.message);
+  }
+}
+
+// ===== ADMIN =====
+async function loadAdminPanel() {
+  loading(true, "データを読み込み中...");
+  try {
+    adminData = await sb.select("select=*&order=updated_at.desc");
+    loading(false);
+    $("resp-count").textContent = `${adminData.length} 件`;
+    const filtersEl = $("admin-filters");
+    filtersEl.innerHTML = `<button class="filter-btn active" onclick="filterAdmin('all',this)">すべて</button>`;
+    USERS.forEach(u => {
+      filtersEl.innerHTML += `<button class="filter-btn" onclick="filterAdmin('${escH(u)}',this)">${escH(u)}</button>`;
+    });
+    renderAdmin("all");
+    showEl("admin-screen");
+  } catch(e) {
+    loading(false);
+    alert("データ読み込み失敗:\n" + e.message);
+  }
+}
+
+function filterAdmin(val, btn) {
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderAdmin(val);
+}
+
+function renderAdmin(filter) {
+  const list = $("admin-list");
+  const data = filter === "all" ? adminData : adminData.filter(r => r.user_name === filter);
+  if (!data.length) { list.innerHTML = `<div class="empty-state">まだ回答がありません</div>`; return; }
+
+  list.innerHTML = data.map(r => {
+    const scores = CRITERIA.map((c,ci) => {
+      const sc = r[CRIT_COLS[ci]] || 0;
+      return `<div class="score-chip"><span class="sc-label">${CRIT_EMOJI[ci]}${c}</span><span class="sc-val">${sc > 0 ? "★".repeat(sc) : "—"}</span></div>`;
+    }).join("");
+    const tag = r.is_draft ? `<span class="draft-tag">✏ 入力中</span>` : `<span class="final-tag">✓ 送信済</span>`;
+    const comment = r.comment ? `<div class="resp-comment">💬 ${escH(r.comment)}</div>` : "";
+    return `<div class="resp-card">
+      <div class="resp-meta">${new Date(r.updated_at).toLocaleString("ja-JP")}</div>
+      <div class="resp-person">👤 ${escH(r.user_name)} ${tag}</div>
+      <div class="resp-shop">🏪 ${escH(r.shop_name)}</div>
+      <div class="resp-gyoza">🥟 ${escH(r.gyoza_type)}</div>
+      <div class="resp-scores">${scores}</div>
+      ${comment}
+    </div>`;
+  }).join("");
+}
+
+function exportCSV() {
+  if (!adminData.length) { alert("データがありません"); return; }
+  const rows = [["状態","更新日時","回答者","店舗","餃子の種類",...CRITERIA,"コメント"]];
+  adminData.forEach(r => rows.push([
+    r.is_draft?"入力中":"送信済",
+    new Date(r.updated_at).toLocaleString("ja-JP"),
+    r.user_name, r.shop_name, r.gyoza_type,
+    ...CRIT_COLS.map(c => r[c] || ""),
+    r.comment || ""
+  ]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8"}));
+  a.download = "gyoza_survey.csv"; a.click();
+}
+</script>
+</body>
+</html>
