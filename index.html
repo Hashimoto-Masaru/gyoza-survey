@@ -139,10 +139,10 @@ textarea:focus { border-color:var(--gold); }
     <h2>ログイン</h2>
     <label class="field-label">あなたは？</label>
     <div class="user-btns">
-      <button class="user-btn" onclick="selectUser('hashimoto',this)">橋本</button>
-      <button class="user-btn" onclick="selectUser('morita',this)">森田</button>
-      <button class="user-btn" onclick="selectUser('kawaguchi',this)">川口</button>
-      <button class="user-btn" onclick="selectUser('funaba',this)">舟場</button>
+      <button class="user-btn" onclick="selectUser('hashimoto',this)">hashimoto</button>
+      <button class="user-btn" onclick="selectUser('kawaguchi',this)">kawaguchi</button>
+      <button class="user-btn" onclick="selectUser('funaba',this)">funaba</button>
+      <button class="user-btn" onclick="selectUser('morita',this)">morita</button>
     </div>
     <div id="pw-section" style="display:none;margin-top:20px;">
       <label class="field-label" for="pw">パスワード</label>
@@ -218,17 +218,31 @@ const sb = {
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
-  // ON CONFLICT upsert - updates existing row if user_name+shop_id+gyoza_type already exists
+  // PATCH existing row, INSERT only if not found
   async upsert(rows) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/gyoza_responses`, {
-      method: "POST",
-      headers: {
-        ...this.h,
-        "Prefer": "resolution=merge-duplicates,return=minimal"
-      },
-      body: JSON.stringify(rows)
-    });
-    if (!r.ok) throw new Error(await r.text());
+    for (const row of rows) {
+      const enc = encodeURIComponent;
+      const filter = `user_name=eq.${enc(row.user_name)}&shop_id=eq.${enc(row.shop_id)}&gyoza_type=eq.${enc(row.gyoza_type)}`;
+
+      // PATCH (update) existing row
+      const upd = await fetch(`${SUPABASE_URL}/rest/v1/gyoza_responses?${filter}`, {
+        method: "PATCH",
+        headers: { ...this.h, "Prefer": "return=representation,count=exact" },
+        body: JSON.stringify(row)
+      });
+      if (!upd.ok) throw new Error(await upd.text());
+      const updated = await upd.json();
+
+      // If no row matched, INSERT new row
+      if (!updated || updated.length === 0) {
+        const ins = await fetch(`${SUPABASE_URL}/rest/v1/gyoza_responses`, {
+          method: "POST",
+          headers: { ...this.h, "Prefer": "return=minimal" },
+          body: JSON.stringify(row)
+        });
+        if (!ins.ok) throw new Error(await ins.text());
+      }
+    }
   }
 };
 
